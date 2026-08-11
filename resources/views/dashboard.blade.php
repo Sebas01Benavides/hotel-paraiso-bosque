@@ -9,7 +9,12 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    {{ __("You're logged in!") }}
+                    {{ __("¡Has iniciado sesión exitosamente!") }}
+                    <div class="mt-4">
+                        <a href="{{ route('reservations.index') }}" class="text-indigo-600 underline font-semibold">
+                            Ir a Mis Reservas →
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

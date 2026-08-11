@@ -11,21 +11,31 @@ class Reservation extends Model
 
     protected $fillable = [
         'user_id',
-        'fecha_llegada',
-        'fecha_salida',
-        'numero_huespedes',
-        'tipo_habitacion',
-        'comentarios',
+        'check_in',
+        'check_out',
+        'guests',
+        'room_type',
+        'comments',
+        'dias_reserva',
+        'porcentaje_descuento',
+        'estado',
+        'costo_total',
     ];
 
-    protected $casts = [
-        'fecha_llegada' => 'date',
-        'fecha_salida' => 'date',
-    ];
-
-    // Cada reserva pertenece a un usuario
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'reservation_service')
+                    ->withPivot('precio_en_reserva')
+                    ->withTimestamps();
+    }
+
+    public function registros()
+    {
+        return $this->hasMany(RegistroReserva::class);
     }
 }
