@@ -11,16 +11,17 @@ return new class extends Migration
         Schema::create('reservations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->date('fecha_llegada');
-            $table->date('fecha_salida');
-            $table->unsignedInteger('numero_huespedes');
-            $table->string('tipo_habitacion'); // sencilla, doble, suite, familiar
-            $table->text('comentarios')->nullable();
+            $table->date('check_in');
+            $table->date('check_out');
+            $table->integer('guests');
+            $table->string('room_type');
+            $table->text('comments')->nullable();
 
             $table->integer('dias_reserva')->default(0);
             $table->decimal('porcentaje_descuento', 5, 2)->default(0.00);
             $table->enum('estado', ['pendiente', 'confirmado', 'cancelado', 'completado'])->default('pendiente');
             $table->decimal('costo_total', 10, 2)->default(0.00);
+
             $table->timestamps();
         });
     }

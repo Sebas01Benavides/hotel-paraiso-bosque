@@ -12,7 +12,11 @@ class ReservationController extends Controller
 {
     public function index()
     {
-        $reservations = Reservation::with(['services', 'registros.user'])->where('user_id', auth()->id())->get();
+        $reservations = Reservation::with(['services', 'registros.user'])
+            ->where('user_id', auth()->user()->id)
+            ->latest()
+            ->get();
+
         return view('reservations.index', compact('reservations'));
     }
 
@@ -29,50 +33,48 @@ class ReservationController extends Controller
             'check_out' => 'required|date|after:check_in',
             'guests' => 'required|integer|min:1',
             'room_type' => 'required|string',
+            'comments' => 'nullable|string',
             'services' => 'nullable|array',
             'services.*' => 'exists:services,id',
         ]);
 
-        // 1. Días de reserva
         $checkIn = Carbon::parse($request->check_in);
         $checkOut = Carbon::parse($request->check_out);
         $diasReserva = $checkIn->diffInDays($checkOut);
 
-        // Tarifas base por habitación
         $preciosHabitacion = [
-            'Standard' => 50,
-            'Deluxe' => 80,
+            'Sencilla' => 50,
+            'Doble' => 80,
             'Suite' => 120,
+            'Familiar' => 150,
         ];
+
         $precioNoche = $preciosHabitacion[$request->room_type] ?? 50;
         $subtotalHabitacion = $diasReserva * $precioNoche;
 
-        // 2. Descuento si supera 7 días (10%)
         $porcentajeDescuento = 0;
         if ($diasReserva > 7) {
             $porcentajeDescuento = 10;
             $subtotalHabitacion -= ($subtotalHabitacion * 0.10);
         }
 
-        // 3. Servicios adicionales
         $costoServicios = 0;
-        $serviciosPivot = [];
+        $serviciosSeleccionados = [];
+
         if ($request->has('services')) {
-            $serviciosDb = Service::whereIn('id', $request->services)->get();
-            foreach ($serviciosDb as $serv) {
-                $costoServicios += $serv->precio;
-                $serviciosPivot[$serv->id] = ['precio_en_reserva' => $serv->precio];
+            $services = Service::whereIn('id', $request->services)->get();
+            foreach ($services as $service) {
+                $costoServicios += $service->precio;
+                $serviciosSeleccionados[$service->id] = ['precio_en_reserva' => $service->precio];
             }
         }
 
-        // 4. IVA (13%) y costo total
         $subtotal = $subtotalHabitacion + $costoServicios;
         $iva = $subtotal * 0.13;
         $costoTotal = $subtotal + $iva;
 
-        // 5. Crear reserva
         $reservation = Reservation::create([
-            'user_id' => auth()->id(),
+            'user_id' => auth()->user()->id,
             'check_in' => $request->check_in,
             'check_out' => $request->check_out,
             'guests' => $request->guests,
@@ -84,34 +86,17 @@ class ReservationController extends Controller
             'costo_total' => $costoTotal,
         ]);
 
-        if (!empty($serviciosPivot)) {
-            $reservation->services()->attach($serviciosPivot);
+        if (!empty($serviciosSeleccionados)) {
+            $reservation->services()->attach($serviciosSeleccionados);
         }
 
-        // Registrar en historial
         RegistroReserva::create([
             'reservation_id' => $reservation->id,
-            'user_id' => auth()->id(),
+            'user_id' => auth()->user()->id,
             'estado' => 'pendiente',
             'fecha_cambio' => now(),
         ]);
 
         return redirect()->route('reservations.index')->with('success', 'Reserva creada exitosamente.');
-    }
-
-    public function updateEstado(Request $request, Reservation $reservation)
-    {
-        $request->validate(['estado' => 'required|in:pendiente,confirmado,cancelado,completado']);
-
-        $reservation->update(['estado' => $request->estado]);
-
-        RegistroReserva::create([
-            'reservation_id' => $reservation->id,
-            'user_id' => auth()->id(),
-            'estado' => $request->estado,
-            'fecha_cambio' => now(),
-        ]);
-
-        return back()->with('success', 'Estado actualizado.');
     }
 }
